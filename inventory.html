@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inventory Management - DealerOS</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <!-- QR Code Library -->
+    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.0/build/qrcode.min.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <nav class="navbar container">
+            <a href="index.html" class="logo">DealerOS</a>
+            <div class="nav-links">
+                <a href="index.html" class="nav-link">Dashboard</a>
+                <a href="inventory.html" class="nav-link active">Inventory</a>
+                <a href="#" onclick="showAddCarModal()" class="nav-link">Add Car</a>
+                <a href="#" onclick="showCompanyModal()" class="nav-link">Company</a>
+                <button id="logoutBtn" class="btn btn-danger">Logout</button>
+            </div>
+        </nav>
+    </header>
+    
+    <!-- Main Content -->
+    <main class="container">
+        <div style="margin: 2rem 0;">
+            <h1>Inventory Management</h1>
+            <p style="color: var(--gray);">Manage your imported and yard vehicles</p>
+        </div>
+        
+        <!-- Filter Controls -->
+        <div style="background: white; padding: 1.5rem; border-radius: var(--border-radius); box-shadow: var(--shadow); margin-bottom: 2rem;">
+            <div style="display: flex; gap: 1rem; flex-wrap: wrap; align-items: center;">
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="inventoryType" style="display: block; margin-bottom: 0.5rem; color: var(--dark); font-weight: 500;">Filter by Type</label>
+                    <select id="inventoryType" class="form-control" onchange="filterInventory()">
+                        <option value="all">All Vehicles</option>
+                        <option value="imported">Imported Cars</option>
+                        <option value="yard">Yard Cars</option>
+                    </select>
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="statusFilter" style="display: block; margin-bottom: 0.5rem; color: var(--dark); font-weight: 500;">Filter by Status</label>
+                    <select id="statusFilter" class="form-control" onchange="filterInventory()">
+                        <option value="all">All Status</option>
+                        <option value="active">Active</option>
+                        <option value="sold">Sold</option>
+                        <option value="delivered">Delivered</option>
+                    </select>
+                </div>
+                
+                <div style="flex: 1; min-width: 200px;">
+                    <label for="searchBox" style="display: block; margin-bottom: 0.5rem; color: var(--dark); font-weight: 500;">Search</label>
+                    <input type="text" id="searchBox" class="form-control" placeholder="Search by name, VIN, or registration..." onkeyup="searchInventory()">
+                </div>
+            </div>
+        </div>
+        
+        <!-- Inventory Summary -->
+        <div class="dashboard-cards" style="margin-bottom: 2rem;">
+            <div class="card">
+                <h3 class="card-title">Total Vehicles</h3>
+                <div class="card-value" id="totalVehicles">0</div>
+                <div class="card-subtitle">All inventory</div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">Available for Sale</h3>
+                <div class="card-value" id="availableVehicles">0</div>
+                <div class="card-subtitle">In yard</div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">In Transit</h3>
+                <div class="card-value" id="transitVehicles">0</div>
+                <div class="card-subtitle">Being imported</div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title">Total Value</h3>
+                <div class="card-value" id="inventoryValue">KES 0</div>
+                <div class="card-subtitle">Current inventory</div>
+            </div>
+        </div>
+        
+        <!-- Inventory Table -->
+        <div class="table-container">
+            <div style="padding: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <h3 style="margin: 0;">Vehicle Inventory</h3>
+                <div>
+                    <button onclick="exportInventory()" class="btn" style="margin-right: 0.5rem;">Export CSV</button>
+                    <button onclick="showAddCarModal()" class="btn btn-success">Add New Vehicle</button>
+                </div>
+            </div>
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Vehicle</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Price</th>
+                        <th>Location</th>
+                        <th>Added</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="inventoryTable">
+                    <!-- Will be populated by JavaScript -->
+                    <tr id="loadingRow">
+                        <td colspan="7" style="text-align: center; padding: 3rem;">
+                            <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                            <p style="color: var(--gray); margin-top: 1rem;">Loading inventory...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div style="padding: 1.5rem; text-align: center; border-top: 1px solid #eee;">
+                <div id="paginationControls">
+                    <!-- Pagination will be added here -->
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Add Car Modal -->
+    <div class="modal" id="addCarModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Add New Vehicle</h3>
+                <button onclick="closeModal('addCarModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="addCarForm">
+                    <div class="form-group">
+                        <label for="carType">Vehicle Type *</label>
+                        <select id="carType" class="form-control" required onchange="toggleCarTypeFields()">
+                            <option value="">Select type</option>
+                            <option value="imported">Imported (In Transit)</option>
+                            <option value="yard">Showroom / Yard Car</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Common Fields -->
+                    <div class="form-group">
+                        <label for="vehicleName">Vehicle Name *</label>
+                        <input type="text" id="vehicleName" class="form-control" placeholder="e.g., Toyota Harrier 2018" required>
+                    </div>
+                    
+                    <!-- Imported Car Fields -->
+                    <div id="importedFields" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                            <div class="form-group">
+                                <label for="vin">VIN / Chassis Number *</label>
+                                <input type="text" id="vin" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="dealerName">Dealer Name</label>
+                                <input type="text" id="dealerName" class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="originCountry">Origin Country</label>
+                                <input type="text" id="originCountry" class="form-control" placeholder="e.g., Japan">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="shipName">Ship Name</label>
+                                <input type="text" id="shipName" class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="eta">ETA *</label>
+                                <input type="date" id="eta" class="form-control" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="importStatus">Import Status *</label>
+                                <select id="importStatus" class="form-control" required>
+                                    <option value="purchased">Purchased</option>
+                                    <option value="shipped">Shipped</option>
+                                    <option value="arrived">Arrived at Port</option>
+                                    <option value="clearing">Clearing in Progress</option>
+                                    <option value="cleared">Cleared</option>
+                                    <option value="delivered">Delivered to Yard</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="storageCost">Storage Cost per Day (KES)</label>
+                                <input type="number" id="storageCost" class="form-control" step="0.01" min="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="clearingFees">Clearing Fees (KES)</label>
+                                <input type="number" id="clearingFees" class="form-control" step="0.01" min="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="demurrageCharges">Demurrage Charges (KES)</label>
+                                <input type="number" id="demurrageCharges" class="form-control" step="0.01" min="0">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Yard Car Fields -->
+                    <div id="yardFields" style="display: none;">
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                            <div class="form-group">
+                                <label for="make">Make</label>
+                                <input type="text" id="make" class="form-control" placeholder="e.g., Toyota">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="model">Model</label>
+                                <input type="text" id="model" class="form-control" placeholder="e.g., Harrier">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="year">Year</label>
+                                <input type="number" id="year" class="form-control" min="1900" max="2024">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="engineSize">Engine Size (cc)</label>
+                                <input type="number" id="engineSize" class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="fuelType">Fuel Type</label>
+                                <select id="fuelType" class="form-control">
+                                    <option value="">Select</option>
+                                    <option value="petrol">Petrol</option>
+                                    <option value="diesel">Diesel</option>
+                                    <option value="hybrid">Hybrid</option>
+                                    <option value="electric">Electric</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="transmission">Transmission</label>
+                                <select id="transmission" class="form-control">
+                                    <option value="">Select</option>
+                                    <option value="automatic">Automatic</option>
+                                    <option value="manual">Manual</option>
+                                    <option value="semi-automatic">Semi-Automatic</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="mileage">Mileage (km)</label>
+                                <input type="number" id="mileage" class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="driveType">Drive Type</label>
+                                <select id="driveType" class="form-control">
+                                    <option value="">Select</option>
+                                    <option value="2wd">2WD</option>
+                                    <option value="4wd">4WD</option>
+                                    <option value="awd">AWD</option>
+                                </select>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="exteriorColor">Exterior Color</label>
+                                <input type="text" id="exteriorColor" class="form-control">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="registration">Registration Number</label>
+                                <input type="text" id="registration" class="form-control" placeholder="e.g., KAA 123A">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="averagePrice">Average Market Price (KES)</label>
+                                <input type="number" id="averagePrice" class="form-control" step="0.01" min="0">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="sellingPrice">Selling Price (KES) *</label>
+                                <input type="number" id="sellingPrice" class="form-control" step="0.01" min="0" required>
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="negotiable">Negotiable</label>
+                                <select id="negotiable" class="form-control">
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Features Section -->
+                    <div style="margin: 1.5rem 0;">
+                        <h4 style="margin-bottom: 1rem;">Features & Options</h4>
+                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;">
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" name="features" value="Air Conditioning" class="feature-checkbox">
+                                <span>Air Conditioning</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" name="features" value="Sunroof" class="feature-checkbox">
+                                <span>Sunroof</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" name="features" value="Alloy Wheels" class="feature-checkbox">
+                                <span>Alloy Wheels</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" name="features" value="Reverse Camera" class="feature-checkbox">
+                                <span>Reverse Camera</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" name="features" value="Leather Seats" class="feature-checkbox">
+                                <span>Leather Seats</span>
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 0.5rem;">
+                                <input type="checkbox" name="features" value="Navigation System" class="feature-checkbox">
+                                <span>Navigation System</span>
+                            </label>
+                        </div>
+                        <div class="form-group" style="margin-top: 1rem;">
+                            <label for="customFeatures">Custom Features (comma separated)</label>
+                            <input type="text" id="customFeatures" class="form-control" placeholder="e.g., Apple CarPlay, Panoramic Roof, Heated Seats">
+                        </div>
+                    </div>
+                    
+                    <!-- Photos Section -->
+                    <div style="margin: 1.5rem 0;">
+                        <h4 style="margin-bottom: 1rem;">Photos</h4>
+                        <div class="form-group">
+                            <input type="file" id="carPhotos" class="form-control" accept="image/*" multiple>
+                            <small style="color: var(--gray);">Upload multiple photos of the vehicle (JPG, PNG)</small>
+                        </div>
+                        <div id="photoPreview" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 0.5rem; margin-top: 1rem;">
+                            <!-- Photo previews will appear here -->
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('addCarModal')" class="btn">Cancel</button>
+                <button onclick="saveVehicle()" class="btn btn-success">Save Vehicle</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Edit Car Modal -->
+    <div class="modal" id="editCarModal">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header">
+                <h3>Edit Vehicle</h3>
+                <button onclick="closeModal('editCarModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="editCarContent">
+                    <!-- Edit form will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('editCarModal')" class="btn">Cancel</button>
+                <button onclick="updateVehicle()" class="btn btn-success">Update Vehicle</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- QR Modal -->
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Car QR Code</h3>
+                <button onclick="closeModal('qrModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="qrContainer"></div>
+                <div class="qr-actions">
+                    <button onclick="downloadQR()" class="btn btn-success">Download PNG</button>
+                    <button onclick="printQR()" class="btn">Print</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Company Modal -->
+    <div class="modal" id="companyModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Company Information</h3>
+                <button onclick="closeModal('companyModal')" style="background: none; border: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="companyInfoContent">
+                    <!-- Company info will be loaded here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeModal('companyModal')" class="btn">Close</button>
+                <button onclick="editCompanyProfile()" class="btn btn-success">Edit Profile</button>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .action-buttons-small {
+            display: flex;
+            gap: 0.25rem;
+            flex-wrap: wrap;
+        }
+        
+        .action-buttons-small .btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.85rem;
+        }
+    </style>
+    
+    <script src="firebase-config.js"></script>
+    <script src="inventory.js"></script>
+</body>
+</html>
