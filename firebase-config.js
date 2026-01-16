@@ -39,18 +39,19 @@ try {
     
     console.log('Firebase services initialized successfully');
     
-    // Enable Firestore offline persistence (optional but recommended)
-    db.enablePersistence()
-        .then(() => {
-            console.log('Firestore persistence enabled');
-        })
-        .catch((err) => {
-            if (err.code === 'failed-precondition') {
-                console.warn('Multiple tabs open, persistence can only be enabled in one tab at a time.');
-            } else if (err.code === 'unimplemented') {
-                console.warn('The current browser does not support persistence');
-            }
-        });
+  // Enable multi-tab persistence
+db.enablePersistence({ synchronizeTabs: true })
+    .then(() => {
+        console.log('Firestore persistence enabled with multi-tab support');
+    })
+    .catch((err) => {
+        if (err.code === 'failed-precondition') {
+            console.warn('Persistence failed: ', err);
+        } else if (err.code === 'unimplemented') {
+            console.warn('Current browser doesn\'t support persistence');
+        }
+        console.log('Offline features disabled');
+    });
     
 } catch (error) {
     console.error('Firebase initialization error:', error);
