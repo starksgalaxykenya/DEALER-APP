@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Firebase Setup</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+</head>
+<body>
+    <h1>Firebase Setup Test</h1>
+    <div id="status">Testing Firebase...</div>
+    
+    <script>
+        // Your Firebase config - replace with your actual config
+        const firebaseConfig = {
+            apiKey: "AIzaSyC-EXAMPLE-KEY-HERE",
+            authDomain: "your-project.firebaseapp.com",
+            projectId: "your-project-id",
+            storageBucket: "your-project.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const statusDiv = document.getElementById('status');
+            
+            try {
+                // Test Firebase availability
+                statusDiv.innerHTML = 'Checking Firebase SDK...<br>';
+                
+                if (typeof firebase === 'undefined') {
+                    statusDiv.innerHTML += '❌ Firebase SDK not loaded<br>';
+                    return;
+                }
+                
+                statusDiv.innerHTML += '✅ Firebase SDK loaded<br>';
+                
+                // Test individual modules
+                statusDiv.innerHTML += 'Testing modules...<br>';
+                
+                const modules = ['auth', 'firestore', 'storage'];
+                modules.forEach(module => {
+                    if (typeof firebase[module] !== 'undefined') {
+                        statusDiv.innerHTML += `✅ firebase.${module} available<br>`;
+                    } else {
+                        statusDiv.innerHTML += `❌ firebase.${module} NOT available<br>`;
+                    }
+                });
+                
+                // Try to initialize
+                statusDiv.innerHTML += 'Initializing Firebase...<br>';
+                const app = firebase.initializeApp(firebaseConfig);
+                statusDiv.innerHTML += '✅ Firebase initialized<br>';
+                
+                // Test services
+                const auth = firebase.auth();
+                const db = firebase.firestore();
+                const storage = firebase.storage();
+                
+                statusDiv.innerHTML += '✅ All services initialized<br>';
+                statusDiv.innerHTML += '<br><strong style="color: green;">✅ Firebase setup is working correctly!</strong>';
+                
+            } catch (error) {
+                statusDiv.innerHTML += `<br><strong style="color: red;">❌ Error: ${error.message}</strong>`;
+                console.error('Test error:', error);
+            }
+        });
+    </script>
+</body>
+</html>
