@@ -1,4 +1,4 @@
-// Public Car View Logic
+// Public Car View Logic - Fixed Version
 document.addEventListener('DOMContentLoaded', function() {
     // Get car ID from URL
     const urlParams = new URLSearchParams(window.location.search);
@@ -10,7 +10,14 @@ document.addEventListener('DOMContentLoaded', function() {
         return;
     }
     
-    loadCarDetails(carId, viewType === 'admin');
+    // Wait for Firebase to be ready
+    if (typeof getFirebaseDb === 'function') {
+        loadCarDetails(carId, viewType === 'admin');
+    } else {
+        document.addEventListener('firebaseReady', function() {
+            loadCarDetails(carId, viewType === 'admin');
+        });
+    }
 });
 
 async function loadCarDetails(carId, isAdminView) {
@@ -18,7 +25,7 @@ async function loadCarDetails(carId, isAdminView) {
         console.log('Loading car details for ID:', carId);
         
         // Get Firestore service
-        const db = window.firebaseServices ? window.firebaseServices.getFirestore() : window.db;
+        const db = window.getFirebaseDb ? window.getFirebaseDb() : (window.firebaseDb || firebase.firestore());
         
         if (!db) {
             showError('Database service not available. Please refresh the page.');
@@ -59,6 +66,8 @@ async function loadCarDetails(carId, isAdminView) {
         showError('Error loading car details: ' + error.message);
     }
 }
+
+// ... rest of your car-public.js code remains the same ...
 
 function renderCarDetails(car, companyData, isAdminView, carId) {
     const container = document.getElementById('carContainer');
