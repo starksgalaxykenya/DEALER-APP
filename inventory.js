@@ -634,55 +634,412 @@ document.addEventListener('DOMContentLoaded', function() {
         window.open(`car-details.html?car=${carId}&view=admin`, '_blank');
     };
     
-    // Generate car QR
-    window.generateCarQR = async function(carId) {
-        try {
+   // Generate QR function - Fixed version
+window.generateQR = async function(carId) {
+    try {
+        // Get car data
+        const carDoc = await db.collection('cars').doc(carId).get();
+        if (!carDoc.exists) {
+            alert('Car not found');
+            return;
+        }
+        
+        const car = {
+            id: carId,
+            ...carDoc.data()
+        };
+        
+        // Get company data
+        let companyData = null;
+        if (car.companyId) {
+            const companyDoc = await db.collection('companies').doc(car.companyId).get();
+            if (companyDoc.exists) {
+                companyData = companyDoc.data();
+            }
+        }
+        
+        // Use the QR generator module
+        const qrResult = await window.generateQR(carId, {
+            size: 250,
+            margin: 3,
+            colorDark: '#2c3e50',
+            colorLight: '#FFFFFF',
+            rounded: true
+        });
+        
+        // Display QR in modal
+        const qrContainer = document.getElementById('qrContainer');
+        qrContainer.innerHTML = '';
+        qrContainer.appendChild(qrResult.container);
+        
+        // Add sticker printing button
+        const stickerBtn = document.createElement('button');
+        stickerBtn.className = 'btn btn-warning';
+        stickerBtn.innerHTML = '🖨️ Print Car Sticker';
+        stickerBtn.onclick = () => printCarSticker(carId, car, companyData);
+        stickerBtn.style.marginTop = '1rem';
+        
+        const buttonContainer = document.querySelector('.qr-actions');
+        if (buttonContainer) {
+            buttonContainer.appendChild(stickerBtn);
+        }
+        
+        // Show modal
+        document.getElementById('qrModal').classList.add('show');
+        
+    } catch (error) {
+        console.error('Error generating QR:', error);
+        alert('Error: ' + error.message);
+    }
+};
+
+// NEW: Print Car Sticker Function
+window.printCarSticker = async function(carId, carData, companyData) {
+    try {
+        // Get fresh data if not provided
+        if (!carData || carData.id !== carId) {
             const carDoc = await db.collection('cars').doc(carId).get();
             if (!carDoc.exists) {
                 alert('Car not found');
                 return;
             }
-            
-            const car = carDoc.data();
-            const publicUrl = `${window.location.origin}/car-details.html?car=${carId}`;
-            
-            // Generate QR code
-            const qrContainer = document.getElementById('qrContainer');
-            qrContainer.innerHTML = '';
-            
-            QRCode.toCanvas(qrContainer, publicUrl, {
-                width: 200,
-                margin: 2,
-                color: {
-                    dark: '#000000',
-                    light: '#FFFFFF'
-                }
-            }, function(error) {
-                if (error) {
-                    console.error('QR generation error:', error);
-                    alert('Error generating QR code');
-                } else {
-                    // Add car info
-                    const infoDiv = document.createElement('div');
-                    infoDiv.style.marginTop = '1rem';
-                    infoDiv.style.textAlign = 'center';
-                    infoDiv.innerHTML = `
-                        <h4>${car.vehicleName}</h4>
-                        <p>${car.registration || 'No registration'}</p>
-                        <p><strong>${car.price ? `KES ${parseFloat(car.price).toLocaleString()}` : 'Price not set'}</strong></p>
-                    `;
-                    qrContainer.appendChild(infoDiv);
-                    
-                    // Show modal
-                    document.getElementById('qrModal').classList.add('show');
-                }
-            });
-            
-        } catch (error) {
-            console.error('Error generating QR:', error);
-            alert('Error: ' + error.message);
+            carData = {
+                id: carId,
+                ...carDoc.data()
+            };
         }
-    };
+        
+        if (!companyData && carData.companyId) {
+            const companyDoc = await db.collection('companies').doc(carData.companyId).get();
+            if (companyDoc.exists) {
+                companyData = companyDoc.data();
+            }
+        }
+        
+        // Generate QR code for the sticker
+        const qrResult = await window.generateQR(carId, {
+            size: 150,
+            margin: 2,
+            colorDark: '#000000',
+            colorLight: '#FFFFFF',
+            rounded: false
+        });
+        
+        // Get QR code data URL
+        const qrDataUrl = qrResult.canvas.toDataURL('image/png');
+        
+        // Create sticker HTML
+        const stickerHTML = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Car Sticker - ${carData.vehicleName || 'Vehicle'}</title>
+                <style>
+                    @media print {
+                        @page {
+                            margin: 0;
+                            size: 4in 6in; /* Standard sticker size */
+                        }
+                        body {
+                            margin: 0;
+                            padding: 0;
+                            width: 4in;
+                            height: 6in;
+                            font-family: Arial, sans-serif;
+                            -webkit-print-color-adjust: exact;
+                            color-adjust: exact;
+                        }
+                    }
+                    
+                    .sticker {
+                        width: 4in;
+                        height: 6in;
+                        padding: 15px;
+                        border: 2px solid #333;
+                        border-radius: 10px;
+                        background: white;
+                        box-sizing: border-box;
+                        position: relative;
+                    }
+                    
+                    .header {
+                        text-align: center;
+                        margin-bottom: 15px;
+                        padding-bottom: 10px;
+                        border-bottom: 2px solid #2c3e50;
+                    }
+                    
+                    .header h2 {
+                        margin: 0;
+                        color: #2c3e50;
+                        font-size: 18px;
+                    }
+                    
+                    .vehicle-name {
+                        font-size: 16px;
+                        font-weight: bold;
+                        margin: 10px 0;
+                        text-align: center;
+                    }
+                    
+                    .qr-section {
+                        text-align: center;
+                        margin: 15px 0;
+                        padding: 10px;
+                        border: 1px solid #ddd;
+                        border-radius: 5px;
+                    }
+                    
+                    .qr-code {
+                        margin: 10px auto;
+                    }
+                    
+                    .scan-text {
+                        font-size: 12px;
+                        color: #666;
+                        margin-top: 5px;
+                    }
+                    
+                    .details-grid {
+                        display: grid;
+                        grid-template-columns: 1fr 1fr;
+                        gap: 8px;
+                        margin: 15px 0;
+                        font-size: 12px;
+                    }
+                    
+                    .detail-item {
+                        padding: 4px;
+                        border-bottom: 1px dotted #eee;
+                    }
+                    
+                    .detail-label {
+                        font-weight: bold;
+                        color: #2c3e50;
+                    }
+                    
+                    .price {
+                        text-align: center;
+                        font-size: 18px;
+                        font-weight: bold;
+                        color: #27ae60;
+                        margin: 15px 0;
+                        padding: 10px;
+                        background: #f8f9fa;
+                        border-radius: 5px;
+                    }
+                    
+                    .company-info {
+                        margin-top: 15px;
+                        padding-top: 10px;
+                        border-top: 2px solid #2c3e50;
+                        font-size: 11px;
+                    }
+                    
+                    .company-name {
+                        font-weight: bold;
+                        font-size: 12px;
+                        margin-bottom: 5px;
+                    }
+                    
+                    .contact-info {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 3px;
+                    }
+                    
+                    .contact-item {
+                        display: flex;
+                        align-items: center;
+                        gap: 5px;
+                    }
+                    
+                    .features {
+                        margin-top: 10px;
+                        font-size: 11px;
+                    }
+                    
+                    .features-title {
+                        font-weight: bold;
+                        margin-bottom: 5px;
+                        color: #2c3e50;
+                    }
+                    
+                    .features-list {
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 4px;
+                    }
+                    
+                    .feature-tag {
+                        background: #e8f4fd;
+                        padding: 2px 6px;
+                        border-radius: 10px;
+                        font-size: 10px;
+                    }
+                    
+                    .sticker-footer {
+                        text-align: center;
+                        margin-top: 10px;
+                        font-size: 10px;
+                        color: #666;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="sticker">
+                    <div class="header">
+                        <h2>${companyData?.companyName || 'DealerOS'}</h2>
+                    </div>
+                    
+                    <div class="vehicle-name">
+                        ${carData.vehicleName || 'Vehicle'}
+                    </div>
+                    
+                    ${carData.registration ? `
+                        <div style="text-align: center; font-size: 14px; margin-bottom: 10px;">
+                            <strong>Reg:</strong> ${carData.registration}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="qr-section">
+                        <div class="qr-code">
+                            <img src="${qrDataUrl}" alt="QR Code" style="width: 150px; height: 150px;">
+                        </div>
+                        <div class="scan-text">
+                            📱 Scan QR code for full details
+                        </div>
+                    </div>
+                    
+                    ${carData.price ? `
+                        <div class="price">
+                            KES ${parseFloat(carData.price).toLocaleString('en-KE')}
+                            ${carData.negotiable === 'yes' ? '<span style="font-size: 12px; color: #f39c12;">(Negotiable)</span>' : ''}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="details-grid">
+                        ${carData.make ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Make:</span> ${carData.make}
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.model ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Model:</span> ${carData.model}
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.year ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Year:</span> ${carData.year}
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.fuelType ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Fuel:</span> ${carData.fuelType}
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.transmission ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Trans:</span> ${carData.transmission}
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.mileage ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Mileage:</span> ${parseInt(carData.mileage).toLocaleString()} km
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.engineSize ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Engine:</span> ${carData.engineSize} cc
+                            </div>
+                        ` : ''}
+                        
+                        ${carData.exteriorColor ? `
+                            <div class="detail-item">
+                                <span class="detail-label">Color:</span> ${carData.exteriorColor}
+                            </div>
+                        ` : ''}
+                    </div>
+                    
+                    ${carData.features && carData.features.length > 0 ? `
+                        <div class="features">
+                            <div class="features-title">Features:</div>
+                            <div class="features-list">
+                                ${carData.features.slice(0, 5).map(feature => 
+                                    `<span class="feature-tag">${feature}</span>`
+                                ).join('')}
+                                ${carData.features.length > 5 ? 
+                                    `<span class="feature-tag">+${carData.features.length - 5} more</span>` 
+                                    : ''
+                                }
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    ${companyData ? `
+                        <div class="company-info">
+                            <div class="company-name">${companyData.companyName}</div>
+                            <div class="contact-info">
+                                ${companyData.yardLocation ? `
+                                    <div class="contact-item">
+                                        📍 ${companyData.yardLocation}
+                                    </div>
+                                ` : ''}
+                                
+                                ${companyData.companyPhone ? `
+                                    <div class="contact-item">
+                                        📞 ${companyData.companyPhone}
+                                    </div>
+                                ` : ''}
+                                
+                                ${companyData.whatsappNumber ? `
+                                    <div class="contact-item">
+                                        💬 ${companyData.whatsappNumber}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    ` : ''}
+                    
+                    <div class="sticker-footer">
+                        Generated by DealerOS • ${new Date().toLocaleDateString('en-KE')}
+                    </div>
+                </div>
+                
+                <script>
+                    window.onload = function() {
+                        // Auto-print
+                        window.print();
+                        
+                        // Close after printing
+                        window.onafterprint = function() {
+                            setTimeout(() => {
+                                window.close();
+                            }, 1000);
+                        };
+                    };
+                </script>
+            </body>
+            </html>
+        `;
+        
+        // Open print window
+        const printWindow = window.open('', '_blank');
+        printWindow.document.write(stickerHTML);
+        printWindow.document.close();
+        
+    } catch (error) {
+        console.error('Error printing sticker:', error);
+        alert('Error printing sticker: ' + error.message);
+    }
+};
     
     // Export inventory
     window.exportInventory = function() {
@@ -796,47 +1153,27 @@ document.addEventListener('DOMContentLoaded', function() {
     };
     
     // Download QR
-    window.downloadQR = function() {
-        const canvas = document.querySelector('#qrContainer canvas');
-        if (!canvas) return;
-        
-        const link = document.createElement('a');
-        link.download = 'car-qr-code.png';
-        link.href = canvas.toDataURL('image/png');
-        link.click();
-    };
+   // Also update the downloadQR function to ensure it works:
+window.downloadQR = function(filename = 'car-qr-code.png') {
+    if (window.qrGenerator && window.qrGenerator.qrCanvas) {
+        window.qrGenerator.downloadQR(filename);
+    } else {
+        alert('Please generate a QR code first');
+    }
+};
     
     // Print QR
-    window.printQR = function() {
-        const printWindow = window.open('', '_blank');
-        const qrContent = document.querySelector('#qrContainer').innerHTML;
-        
-        printWindow.document.write(`
-            <html>
-                <head>
-                    <title>Print QR Code</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-                        canvas { margin: 20px auto; display: block; }
-                        h4 { margin: 10px 0; }
-                        p { margin: 5px 0; }
-                    </style>
-                </head>
-                <body>
-                    ${qrContent}
-                    <script>
-                        window.onload = function() {
-                            window.print();
-                            window.onafterprint = function() {
-                                window.close();
-                            };
-                        };
-                    </script>
-                </body>
-            </html>
-        `);
-        printWindow.document.close();
-    };
+   // Update the printQR function:
+window.printQR = function(options = {}) {
+    if (window.qrGenerator) {
+        window.qrGenerator.printQR({
+            paperSize: 'A4',
+            ...options
+        });
+    } else {
+        alert('QR Generator not available');
+    }
+};
     
     // Logout function
     function logout() {
