@@ -141,22 +141,48 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 };
     
-    function checkCompanyProfile(userId) {
-        db.collection('companies').where('adminId', '==', userId).limit(1).get()
-            .then((querySnapshot) => {
-                if (querySnapshot.empty) {
-                    // No company profile exists, redirect to setup
+   function checkCompanyProfile(userId) {
+    // First, ensure user document exists
+    db.collection('users').doc(userId).get()
+        .then((userDoc) => {
+            if (!userDoc.exists) {
+                // Create user document if it doesn't exist
+                return db.collection('users').doc(userId).set({
+                    email: auth.currentUser.email,
+                    role: 'admin',
+                    hasCompany: false,
+                    companySetUp: false,
+                    createdAt: new Date().toISOString()
+                }).then(() => {
+                    // Redirect to company setup
                     window.location.href = 'company-setup.html';
-                } else {
-                    // Company exists, go to dashboard
-                    window.location.href = 'index.html';
-                }
-            })
-            .catch((error) => {
-                console.error('Error checking company profile:', error);
-                showError('Error loading profile. Please try again.');
-            });
-    }
+                });
+            }
+            
+            // Check if company exists
+            return db.collection('companies').where('adminId', '==', userId).limit(1).get()
+                .then((querySnapshot) => {
+                    if (querySnapshot.empty) {
+                        // No company profile exists, redirect to setup
+                        window.location.href = 'company-setup.html';
+                    } else {
+                        // Company exists, update user document
+                        db.collection('users').doc(userId).update({
+                            hasCompany: true,
+                            companySetUp: true,
+                            lastLogin: new Date().toISOString()
+                        }).then(() => {
+                            // Go to dashboard
+                            window.location.href = 'index.html';
+                        });
+                    }
+                });
+        })
+        .catch((error) => {
+            console.error('Error checking company profile:', error);
+            showError('Error loading profile. Please try again.');
+        });
+}
     
     function showError(message) {
         errorMessage.textContent = message;
