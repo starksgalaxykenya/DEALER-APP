@@ -1,0 +1,35 @@
+
+## 10. Public Car Details Page (`car-details.html`)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Car Details - DealerOS</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+</head>
+<body>
+    <div class="car-details-container" id="carContainer">
+        <!-- Car details will be loaded here -->
+        <div style="text-align: center; padding: 3rem;" id="loading">
+            <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+            <p style="color: var(--gray); margin-top: 1rem;">Loading car details...</p>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <script src="firebase-config.js"></script>
+    <script src="car-public.js"></script>
+</body>
+</html>
