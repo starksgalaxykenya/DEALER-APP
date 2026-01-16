@@ -75,34 +75,71 @@ document.addEventListener('DOMContentLoaded', function() {
         if (modal) modal.remove();
     };
     
-    window.registerAdmin = function() {
-        const email = document.getElementById('regEmail').value;
-        const password = document.getElementById('regPassword').value;
-        const confirmPassword = document.getElementById('confirmPassword').value;
+  window.registerAdmin = async function() {
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+    
+    // Validation
+    if (!email || !password || !confirmPassword) {
+        showError('Please fill in all fields');
+        return;
+    }
+    
+    if (password !== confirmPassword) {
+        showError('Passwords do not match');
+        return;
+    }
+    
+    if (password.length < 6) {
+        showError('Password must be at least 6 characters long');
+        return;
+    }
+    
+    try {
+        // 1. Create user with Firebase Auth
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        const user = userCredential.user;
         
-        if (password !== confirmPassword) {
-            showError('Passwords do not match');
-            return;
+        // 2. Create user document in Firestore
+        await db.collection('users').doc(user.uid).set({
+            email: email,
+            role: 'admin',
+            hasCompany: false,
+            companySetUp: false,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+        });
+        
+        // 3. Close modal and redirect to company setup
+        closeModal();
+        window.location.href = 'company-setup.html';
+        
+    } catch (error) {
+        console.error('Registration error:', error);
+        
+        // User-friendly error messages
+        let errorMessage = 'Registration failed: ';
+        switch (error.code) {
+            case 'auth/email-already-in-use':
+                errorMessage += 'Email is already registered';
+                break;
+            case 'auth/invalid-email':
+                errorMessage += 'Invalid email address';
+                break;
+            case 'auth/operation-not-allowed':
+                errorMessage += 'Email/password accounts are not enabled';
+                break;
+            case 'auth/weak-password':
+                errorMessage += 'Password is too weak';
+                break;
+            default:
+                errorMessage += error.message;
         }
         
-        auth.createUserWithEmailAndPassword(email, password)
-            .then((userCredential) => {
-                // Create user document
-                return db.collection('users').doc(userCredential.user.uid).set({
-                    email: email,
-                    role: 'admin',
-                    createdAt: new Date().toISOString()
-                });
-            })
-            .then(() => {
-                closeModal();
-                // Redirect to company setup
-                window.location.href = 'company-setup.html';
-            })
-            .catch((error) => {
-                showError(error.message);
-            });
-    };
+        showError(errorMessage);
+    }
+};
     
     function checkCompanyProfile(userId) {
         db.collection('companies').where('adminId', '==', userId).limit(1).get()
