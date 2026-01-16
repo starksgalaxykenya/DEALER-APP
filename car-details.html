@@ -5,82 +5,466 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Car Details - DealerOS</title>
     <link rel="stylesheet" href="styles.css">
-    <!-- Firebase SDKs -->
-  <!-- NEW (CORRECT) - Compatible version -->
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+    
+    <!-- Firebase 8.x - Most stable version -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-storage.js"></script>
     
     <style>
-        /* Additional styles for car details page */
-        .share-buttons {
-            display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            flex-wrap: wrap;
+        /* Additional styles for better display */
+        .car-gallery {
+            height: 300px;
+            overflow: hidden;
+            position: relative;
         }
         
-        .share-btn {
+        .car-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        .thumbnail-container {
+            display: flex;
+            gap: 5px;
+            margin-top: 10px;
+            padding: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .thumbnail {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            cursor: pointer;
+            border: 2px solid transparent;
+            border-radius: 4px;
+        }
+        
+        .thumbnail.active {
+            border-color: #3498db;
+        }
+        
+        .car-info {
+            padding: 2rem;
+        }
+        
+        .car-title {
+            font-size: 1.8rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+        }
+        
+        .car-price {
+            font-size: 1.5rem;
+            color: #27ae60;
+            font-weight: bold;
+            margin-bottom: 1.5rem;
+        }
+        
+        .specs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        
+        .spec-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .dealer-info {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 8px;
+            margin: 1.5rem 0;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 2rem;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 1rem;
+            font-size: 1rem;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--light);
+            text-decoration: none;
+            border-radius: 8px;
             border: none;
-            border-radius: var(--border-radius);
             cursor: pointer;
-            font-size: 0.9rem;
-            transition: var(--transition);
+            font-weight: 500;
         }
         
-        .share-btn:hover {
-            background: #ddd;
-        }
-        
-        .whatsapp-share {
+        .whatsapp-btn {
             background: #25D366;
             color: white;
         }
         
-        .whatsapp-share:hover {
-            background: #1da851;
-        }
-        
-        .sms-share {
-            background: #34b7f1;
+        .call-btn {
+            background: #27ae60;
             color: white;
         }
         
-        .sms-share:hover {
-            background: #2aa1d6;
+        .feature-badge {
+            background: #e8f4fd;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            display: inline-block;
+            margin: 0.25rem;
+        }
+        
+        /* Loading animation */
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .error-message {
+            text-align: center;
+            padding: 3rem;
+            color: #e74c3c;
         }
     </style>
 </head>
 <body>
     <div class="car-details-container" id="carContainer">
-        <!-- Loading indicator -->
-        <div style="text-align: center; padding: 3rem;" id="loading">
-            <div style="display: inline-block; width: 30px; height: 30px; border: 3px solid #f3f3f3; border-top: 3px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="color: var(--gray); margin-top: 1rem;">Loading car details...</p>
+        <!-- Loading state -->
+        <div id="loading" style="text-align: center; padding: 3rem;">
+            <div class="loading-spinner"></div>
+            <p style="color: #666; margin-top: 1rem;">Loading car details...</p>
         </div>
     </div>
-    
-    <!-- Share buttons will be added dynamically -->
-    
+
     <script>
-        // Simple spin animation
-        const style = document.createElement('style');
-        style.textContent = `
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
+        // SIMPLE FIREBASE INITIALIZATION - Works every time!
+        console.log('Initializing car details page...');
+        
+        // Your Firebase configuration - REPLACE WITH YOURS!
+      const firebaseConfig = {
+  apiKey: "AIzaSyDJ5pRskxuT4bo43J2dr73t3VPlFo5RFbA",
+  authDomain: "performance-tracker-f8c9b.firebaseapp.com",
+  projectId: "performance-tracker-f8c9b",
+  storageBucket: "performance-tracker-f8c9b.firebasestorage.app",
+  messagingSenderId: "385942941204",
+  appId: "1:385942941204:web:a845950b98f0a58e6a8101"
+};
+        
+        // Wait for DOM to load
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('DOM loaded, initializing Firebase...');
+            
+            try {
+                // Initialize Firebase
+                if (!firebase.apps.length) {
+                    firebase.initializeApp(firebaseConfig);
+                    console.log('Firebase initialized');
+                } else {
+                    console.log('Firebase already initialized');
+                }
+                
+                // Make services globally available
+                window.db = firebase.firestore();
+                window.auth = firebase.auth();
+                window.storage = firebase.storage();
+                
+                console.log('Firebase services ready');
+                
+                // Get car ID from URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const carId = urlParams.get('car');
+                
+                if (carId) {
+                    console.log('Found car ID in URL:', carId);
+                    loadCarDetails(carId);
+                } else {
+                    showError('No car ID found in URL. Please scan a valid QR code.');
+                }
+                
+            } catch (error) {
+                console.error('Error initializing Firebase:', error);
+                showError('Error loading application: ' + error.message);
             }
-        `;
-        document.head.appendChild(style);
+        });
+        
+        // Load car details
+        async function loadCarDetails(carId) {
+            console.log('Loading car details for:', carId);
+            
+            try {
+                const carDoc = await firebase.firestore().collection('cars').doc(carId).get();
+                
+                if (!carDoc.exists) {
+                    showError('Car not found. It may have been removed.');
+                    return;
+                }
+                
+                const car = carDoc.data();
+                console.log('Car data loaded:', car.vehicleName);
+                
+                // Load company data if available
+                let companyData = null;
+                if (car.companyId) {
+                    try {
+                        const companyDoc = await firebase.firestore().collection('companies').doc(car.companyId).get();
+                        if (companyDoc.exists) {
+                            companyData = companyDoc.data();
+                            console.log('Company data loaded:', companyData.companyName);
+                        }
+                    } catch (e) {
+                        console.warn('Could not load company:', e);
+                    }
+                }
+                
+                // Render the car
+                renderCar(car, companyData, carId);
+                
+            } catch (error) {
+                console.error('Error loading car:', error);
+                showError('Error loading car details: ' + error.message);
+            }
+        }
+        
+        // Render car details
+        function renderCar(car, company, carId) {
+            console.log('Rendering car:', car.vehicleName);
+            
+            const container = document.getElementById('carContainer');
+            
+            // Hide loading
+            document.getElementById('loading').style.display = 'none';
+            
+            // Build the HTML
+            let html = `
+                <div class="car-gallery">
+                    ${getGalleryHTML(car)}
+                </div>
+                <div class="car-info">
+                    ${getCarInfoHTML(car)}
+                    ${getSpecsHTML(car)}
+                    ${getFeaturesHTML(car)}
+                    ${getCompanyHTML(company)}
+                    ${getActionButtons(car, company)}
+                    ${getAdminActions(carId)}
+                </div>
+            `;
+            
+            container.innerHTML = html;
+        }
+        
+        // Helper functions
+        function getGalleryHTML(car) {
+            if (car.photos && car.photos.length > 0) {
+                return `
+                    <img src="${car.photos[0]}" alt="${car.vehicleName}" class="car-image" id="mainImage">
+                    <div class="thumbnail-container">
+                        ${car.photos.map((photo, index) => `
+                            <img src="${photo}" 
+                                 class="thumbnail ${index === 0 ? 'active' : ''}"
+                                 onclick="changeImage('${photo}', this)"
+                                 alt="Thumbnail ${index + 1}">
+                        `).join('')}
+                    </div>
+                `;
+            }
+            
+            return `
+                <div style="display: flex; align-items: center; justify-content: center; height: 100%; background: #f8f9fa;">
+                    <div style="text-align: center; color: #666;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🚗</div>
+                        <p>No photos available</p>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getCarInfoHTML(car) {
+            let priceHTML = '';
+            if (car.price) {
+                priceHTML = `<div class="car-price">KES ${parseFloat(car.price).toLocaleString()}</div>`;
+            }
+            
+            let regHTML = '';
+            if (car.registration) {
+                regHTML = `<p style="color: #666; margin-bottom: 0.5rem;">Registration: ${car.registration}</p>`;
+            }
+            
+            let typeBadge = '';
+            if (car.type === 'imported') {
+                typeBadge = `<span style="background: #e3f2fd; color: #1976d2; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.9rem; display: inline-block; margin-bottom: 1rem;">🚢 Imported</span>`;
+            } else {
+                typeBadge = `<span style="background: #e8f5e9; color: #388e3c; padding: 0.25rem 0.75rem; border-radius: 4px; font-size: 0.9rem; display: inline-block; margin-bottom: 1rem;">🏢 In Yard</span>`;
+            }
+            
+            return `
+                ${typeBadge}
+                <h1 class="car-title">${car.vehicleName || 'Unnamed Vehicle'}</h1>
+                ${regHTML}
+                ${priceHTML}
+            `;
+        }
+        
+        function getSpecsHTML(car) {
+            if (car.type === 'yard') {
+                return `
+                    <h3>Specifications</h3>
+                    <div class="specs-grid">
+                        ${car.make ? `<div class="spec-item"><span>Make:</span><span><strong>${car.make}</strong></span></div>` : ''}
+                        ${car.model ? `<div class="spec-item"><span>Model:</span><span><strong>${car.model}</strong></span></div>` : ''}
+                        ${car.year ? `<div class="spec-item"><span>Year:</span><span><strong>${car.year}</strong></span></div>` : ''}
+                        ${car.fuelType ? `<div class="spec-item"><span>Fuel Type:</span><span><strong>${car.fuelType}</strong></span></div>` : ''}
+                        ${car.transmission ? `<div class="spec-item"><span>Transmission:</span><span><strong>${car.transmission}</strong></span></div>` : ''}
+                        ${car.mileage ? `<div class="spec-item"><span>Mileage:</span><span><strong>${parseInt(car.mileage).toLocaleString()} km</strong></span></div>` : ''}
+                        ${car.engineSize ? `<div class="spec-item"><span>Engine:</span><span><strong>${car.engineSize} cc</strong></span></div>` : ''}
+                        ${car.exteriorColor ? `<div class="spec-item"><span>Color:</span><span><strong>${car.exteriorColor}</strong></span></div>` : ''}
+                    </div>
+                `;
+            } else if (car.type === 'imported') {
+                return `
+                    <h3>Import Details</h3>
+                    <div class="specs-grid">
+                        ${car.vin ? `<div class="spec-item"><span>VIN:</span><span><strong>${car.vin}</strong></span></div>` : ''}
+                        ${car.originCountry ? `<div class="spec-item"><span>Origin:</span><span><strong>${car.originCountry}</strong></span></div>` : ''}
+                        ${car.eta ? `<div class="spec-item"><span>ETA:</span><span><strong>${new Date(car.eta).toLocaleDateString()}</strong></span></div>` : ''}
+                        ${car.importStatus ? `<div class="spec-item"><span>Status:</span><span><strong>${car.importStatus}</strong></span></div>` : ''}
+                    </div>
+                `;
+            }
+            
+            return '';
+        }
+        
+        function getFeaturesHTML(car) {
+            if (car.features && car.features.length > 0) {
+                return `
+                    <h3 style="margin-top: 1.5rem;">Features</h3>
+                    <div style="margin: 1rem 0;">
+                        ${car.features.map(feature => `<span class="feature-badge">✓ ${feature}</span>`).join('')}
+                    </div>
+                `;
+            }
+            return '';
+        }
+        
+        function getCompanyHTML(company) {
+            if (!company) return '';
+            
+            return `
+                <div class="dealer-info">
+                    <h3>Dealer Information</h3>
+                    <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                        ${company.logoUrl ? `<img src="${company.logoUrl}" alt="${company.companyName}" style="width: 50px; height: 50px; border-radius: 50%;">` : ''}
+                        <div>
+                            <h4 style="margin: 0;">${company.companyName}</h4>
+                            <p style="color: #666; margin: 0.25rem 0;">${company.yardLocation || ''}</p>
+                        </div>
+                    </div>
+                    ${company.companyDescription ? `<p>${company.companyDescription}</p>` : ''}
+                    <div style="display: flex; gap: 2rem; margin-top: 1rem;">
+                        ${company.companyPhone ? `
+                            <div>
+                                <strong>Phone:</strong>
+                                <p style="margin: 0.25rem 0;">${company.companyPhone}</p>
+                            </div>
+                        ` : ''}
+                        ${company.whatsappNumber ? `
+                            <div>
+                                <strong>WhatsApp:</strong>
+                                <p style="margin: 0.25rem 0;">${company.whatsappNumber}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        function getActionButtons(car, company) {
+            if (!company) return '';
+            
+            const whatsappMessage = `Hello, I'm interested in the ${car.vehicleName || 'this vehicle'}${car.price ? ` listed at KES ${parseFloat(car.price).toLocaleString()}` : ''}.`;
+            const encodedMessage = encodeURIComponent(whatsappMessage);
+            const whatsappNumber = company.whatsappNumber ? company.whatsappNumber.replace(/[^0-9]/g, '') : '';
+            const phoneNumber = company.companyPhone ? company.companyPhone.replace(/[^0-9+]/g, '') : '';
+            
+            let buttons = '';
+            
+            if (phoneNumber) {
+                buttons += `<a href="tel:${phoneNumber}" class="action-btn call-btn">📞 Call Dealer</a>`;
+            }
+            
+            if (whatsappNumber) {
+                buttons += `<a href="https://wa.me/${whatsappNumber}?text=${encodedMessage}" target="_blank" class="action-btn whatsapp-btn">💬 WhatsApp</a>`;
+            }
+            
+            if (buttons) {
+                return `<div class="action-buttons">${buttons}</div>`;
+            }
+            
+            return '';
+        }
+        
+        function getAdminActions(carId) {
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('view') === 'admin') {
+                return `
+                    <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #eee;">
+                        <h4>Admin Actions</h4>
+                        <div style="display: flex; gap: 1rem; margin-top: 1rem;">
+                            <a href="index.html" class="action-btn" style="background: #666; color: white; text-decoration: none; text-align: center;">Back to Dashboard</a>
+                            <button onclick="generateQR('${carId}')" class="action-btn" style="background: #27ae60; color: white;">Generate QR Code</button>
+                        </div>
+                    </div>
+                `;
+            }
+            return '';
+        }
+        
+        // Utility functions
+        function changeImage(src, element) {
+            document.getElementById('mainImage').src = src;
+            document.querySelectorAll('.thumbnail').forEach(thumb => thumb.classList.remove('active'));
+            element.classList.add('active');
+        }
+        
+        function showError(message) {
+            const container = document.getElementById('carContainer');
+            container.innerHTML = `
+                <div class="error-message">
+                    <h2>Error</h2>
+                    <p>${message}</p>
+                    <a href="index.html" style="display: inline-block; margin-top: 1rem; padding: 0.5rem 1rem; background: #3498db; color: white; text-decoration: none; border-radius: 4px;">Go Home</a>
+                </div>
+            `;
+        }
+        
+        function generateQR(carId) {
+            window.open(`index.html?generateQR=${carId}`, '_blank');
+        }
+        
+        // Make functions available globally
+        window.changeImage = changeImage;
+        window.generateQR = generateQR;
     </script>
-    
-    <script src="firebase-config.js"></script>
-    <script src="car-public.js"></script>
 </body>
 </html>
