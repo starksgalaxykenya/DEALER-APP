@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup Your Company - DealerOS</title>
+    <link rel="stylesheet" href="styles.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-storage-compat.js"></script>
+</head>
+<body>
+    <div class="auth-container">
+        <div class="auth-card" style="max-width: 600px;">
+            <h1 class="auth-title">Setup Your Company Profile</h1>
+            <p style="text-align: center; margin-bottom: 2rem; color: var(--gray);">
+                Enter your dealership information to get started
+            </p>
+            
+            <form id="companyForm">
+                <div class="form-group">
+                    <label for="companyName">Company Name *</label>
+                    <input type="text" id="companyName" class="form-control" placeholder="e.g., Nairobi Motors Ltd" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="yardLocation">Yard Location *</label>
+                    <input type="text" id="yardLocation" class="form-control" placeholder="e.g., Mombasa Road, Nairobi" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="companyPhone">Company Phone Number *</label>
+                    <input type="tel" id="companyPhone" class="form-control" placeholder="+254 700 000000" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="whatsappNumber">WhatsApp Number *</label>
+                    <input type="tel" id="whatsappNumber" class="form-control" placeholder="+254 700 000000" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="companyLogo">Company Logo</label>
+                    <input type="file" id="companyLogo" class="form-control" accept="image/*">
+                    <small style="color: var(--gray);">Recommended: 300x300px PNG or JPG</small>
+                </div>
+                
+                <div class="form-group">
+                    <label for="companyDescription">Company Description</label>
+                    <textarea id="companyDescription" class="form-control" rows="3" placeholder="Brief description of your dealership..."></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-block btn-success">Save & Continue</button>
+            </form>
+            
+            <div id="errorMessage" style="color: var(--danger); text-align: center; margin-top: 1rem; display: none;"></div>
+            
+            <div id="progress" style="display: none; text-align: center; margin-top: 1rem;">
+                <div style="display: inline-block; width: 20px; height: 20px; border: 3px solid #f3f3f3; border-top: 3px solid var(--secondary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                <p style="color: var(--gray); margin-top: 0.5rem;">Saving company profile...</p>
+            </div>
+        </div>
+    </div>
+    
+    <style>
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+    
+    <script src="firebase-config.js"></script>
+    <script src="company.js"></script>
+</body>
+</html>
